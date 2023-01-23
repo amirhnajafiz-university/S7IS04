@@ -5,3 +5,15 @@
 <br />
 
 Chat room over SSH.
+
+## Server
+
+```shell
+python main.py
+```
+
+## Connect
+
+```shell
+ssh localhost
+```
