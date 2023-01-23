@@ -1,46 +1,4 @@
-'''
-shusshd.py - The ShuSSH Server Daemon
-Usage:
-    shusshd.py [options]
-    shusshd.py -h | --help
-    shusshd.py -v | --version
-Options:
-    -p --port <port>    Start the server on <port>
-    -l --log <logfile>  Enable logging to <logfile>
-    -k --key <keyfile>  Use <keyfile> as the host's key
-    -e --ephemeral      Do not persist data across server restarts
-    -h --help           Display this documentation
-    -v --version        Display the server version
-'''
 from __future__ import print_function
-
-VERSION = 0.1
-
-# Copyright (c) 2015 Noah Tippett
-#
-# Any person obtaining a copy of this source code may use it or learn from it as
-# they see fit. Distribution or use with the intent to profit or distribution of
-# a modified copy of this source code is prohibited. All other rights reserved.
-#
-# THIS SOURCE CODE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THIS SOURCE CODE OR THE USE OR OTHER DEALINGS IN
-# THIS SOURCE CODE.
-
-import sys
-if sys.hexversion <  0x020700F0:
-    print ("Please use python 2.7 or higher.")
-    sys.exit()
-elif sys.hexversion < 0x030000a1:
-    pyV=2
-    print ("Please use python 3.0 or higher.")
-    sys.exit()
-else:
-    pyV=3
-
 import datetime
 import os
 import pickle
@@ -49,73 +7,16 @@ import socket
 import string
 import threading
 import time
-
 from binascii import hexlify
-
-if pyV is 2:
-    from Queue import Queue
-    import thread
-elif pyV is 3:
-    from queue import Queue
-    import _thread as thread
-else:
-    print("Unsupported python version.")
-    sys.exit()
-
-imported = True
-try:
-    from docopt import docopt
-except ImportError:
-    print("This program requires docopt (http://docopt.org/)")
-    print("")
-    print("     Try 'pip install docopt'...")
-    print("")
-    imported = False
-
-try:
-    import paramiko
-    from paramiko.ssh_exception import SSHException
-    if pyV is 3:
-        from paramiko.py3compat import u
-except ImportError:
-    print("This program requires paramiko (http://www.paramiko.org/)")
-    print("")
-    print("     Try 'pip install paramiko'...")
-    print("")
-    imported = False
-
-try:
-    from passlib.hash import bcrypt_sha256 as bcrypt
-    from passlib.exc import MissingBackendError
-    from passlib.exc import PasswordSizeError
-    try:
-        bcrypt.get_backend()
-    except MissingBackendError:
-        print("Your system does not have bcrypt installed. Try one of these implementations:")
-        print("")
-        print("     bcrypt      (http://bcrypt.sourceforge.net/)")
-        print("     py-bcrypt   (http://www.mindrot.org/projects/py-bcrypt/")
-        print("     bcryptor    (https://pypi.python.org/pypi/Bcryptor)")
-        print("")
-        imported = False
-except ImportError:
-    print("This program requires passlib (https://pythonhosted.org/passlib/)")
-    print("")
-    print("     Try 'pip install passlib'...")
-    print("")
-    imported = False
-
-try:
-    import psutil
-except ImportError:
-    print("This program requires psutil (https://pypi.python.org/pypi/psutil)")
-    print("")
-    print("     Try 'pip install psutil'...")
-    print("")
-    imported = False
-
-if imported is False:
-    sys.exit(1)
+from queue import Queue
+import _thread as thread
+from docopt import docopt
+import paramiko
+from paramiko.ssh_exception import SSHException
+from passlib.hash import bcrypt_sha256 as bcrypt
+from passlib.exc import MissingBackendError
+from passlib.exc import PasswordSizeError
+import psutil
 
 
 # Defaults:
@@ -749,7 +650,7 @@ def chatstream(channels, Q):
 
 
 def sendbanner (channel):
-    channel.send("ShuSSH Server v{:s}\r\n".format(str(VERSION)))
+    channel.send("ShuSSH Server")
 
 origin_quotes = ["All of our knowledge originates in our perceptions.",
                 "Don't judge a book by its cover.",
@@ -807,51 +708,22 @@ def connect (remote,addr):
     chat(chan, chatQ, linebuffer[username])
                 
 
+
 if __name__ == '__main__':
-    args = docopt(__doc__)
-
-    if args['--help']:
-        print(__doc__)          #   display help
-        sys.exit(0)
-
-    if args['--version']:
-        print("ShuSSH Server Version {:s}".format(str(VERSION))) #Display version
-        sys.exit(0)
-
-    print("Starting ShuSSH Daemon...")
-
-    if args['--ephemeral'] is False:
-        savestate = True
-
-    if args['--key']:
-        key_file = args['--key']
-        if os.path.isfile(key_file) is False:
-            print("Key file does not exist: {:s}".format(key_file))
-            sys.exit(1)
-        print("Using {:s}".format(key_file))
-
+    # first we need to import the finger print
     if os.path.isfile(key_file):
+        print("using {:s}".format(key_file))
         host_key = paramiko.RSAKey(filename=key_file, password=socket.gethostname())
     else:
-        print("Generating host key...")
+        print("generating host key...")
         host_key = paramiko.RSAKey.generate(bits=key_bits)
-        if savestate is not False:
-            print("Saving generated key as {:s}".format(key_file))
-            host_key.write_private_key_file(key_file, password=socket.gethostname())
+
+        print("saving generated key as {:s}".format(key_file))
+        host_key.write_private_key_file(key_file, password=socket.gethostname())
+
     keyhash = hexlify(host_key.get_fingerprint())
-    if pyV is 3:
-        keyhash = u(keyhash)
-    print("Host fingerprint: {:s}".format((":".join([keyhash[i:2+i] for i in range(0, len(keyhash), 2)]))))
 
-    if args['--log'] is not None:
-        logfile = str(args['--log'])
-        print("Logging is on: {:s}".format(logfile))
-        paramiko.util.log_to_file(logfile) #Enable logging
-
-    if args['--port'] is not None:
-        host_port = int(args['--port'])
-
-    print("Listening for connections on port {:d}...".format(host_port))
+    print("listening for connections on port {:d}...".format(host_port))
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -867,12 +739,11 @@ if __name__ == '__main__':
             sock.listen(100)
             remote, addr = sock.accept()
         except Exception as e:
-            print("Could not complete connection: {:s}".format(str(e)))
+            print("could not complete connection: {:s}".format(str(e)))
         except KeyboardInterrupt:
-            print("\n\nAborting...")
-            putQ("My mind is going, I can feel it...")
+            print("\n\naborting...")
             time.sleep(.5)
             os._exit(1)
         ip, port = str(addr[0]), int(addr[1])
-        print("Connection from {:s}:{:d} ".format(ip, port), end="")
+        print("connection from {:s}:{:d} ".format(ip, port), end="")
         thread.start_new_thread(connect, (remote,addr))
