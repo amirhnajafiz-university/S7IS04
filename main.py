@@ -1,4 +1,3 @@
-from __future__ import print_function
 import datetime
 import os
 import pickle
@@ -7,19 +6,23 @@ import socket
 import string
 import threading
 import time
+
+from __future__ import print_function
 from binascii import hexlify
 from queue import Queue
 import _thread as thread
+
 from docopt import docopt
 import paramiko
 from paramiko.ssh_exception import SSHException
 from passlib.hash import bcrypt_sha256 as bcrypt
 from passlib.exc import MissingBackendError
 from passlib.exc import PasswordSizeError
+
 import psutil
 
 
-# Defaults:
+
 host_port = 22
 key_bits = 2048
 key_file = "shusshd-rsa.key"
@@ -34,24 +37,26 @@ linebuffer = dict()     # A dictionary of user's linebuffers username->working l
 command_list = list()   # The list of chat commands
 
 alias = dict()
+
 # Command aliases
 alias["?"] = "help"
 alias["w"] = "who"
 alias["pass"] = "passwd"
 alias["q"] = "quit"
 alias["exit"] = "quit"
+
 command_aliases = alias
+
+
 
 if os.path.isfile(state_file):
     userdb = pickle.load(open(state_file, "rb"))
 
-class Commands ():
-# These are chat commands that are available to clients
 
-    # The commands in _default_acl are  granted to new users*
+
+class Commands ():
     _default_acl = ["help", "quit", "who", "passwd"]
 
-    # *Except any user that is created from localhost gets all the commands:
     def god(chan):
         user = userdb[chan.get_name()]
         O=silence=0
@@ -86,10 +91,6 @@ class Commands ():
         putQ("{:s} is a {:s} god!".format(chan.get_name(), silence))
         return True
 
-    # Documentation is retrieved from the command's docstring,
-    # commands without docstrings will not be listed in /help
-    # If you pass help an argument it will attempt to get more
-    # information from the command definition's _syntax_ attribute
     def help(chan, args=None, justsyntax=False):
         """ Displays this documentation """
         def helpline(chan, command):
@@ -361,19 +362,20 @@ class Commands ():
         if sys.platform == "win32":
             args = ["\"{:s}\"".format(arg) for arg in args]
         os.execv(sys.executable, args)
-                
+
+
 
 command_list = sorted([ c for c in Commands.__dict__.keys() if not c.startswith("_")])
 metals = ["gold", "silver", "bronze", "copper", "tin"] # These are tokens for various acl configurations
 
-class Connection (paramiko.ServerInterface):
 
+
+class Connection (paramiko.ServerInterface):
     def __init__(self):
         self.event = threading.Event()
 
     def check_channel_request(self, kind, chanid):
         if kind == 'session':
-           # print("Opened channel: {:d}".format(chanid))
             return paramiko.OPEN_SUCCEEDED
         return paramiko.OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED
 
@@ -403,6 +405,7 @@ class Connection (paramiko.ServerInterface):
     def check_channel_pty_request(self, channel, term, width, height, pixelwidth, pixelheight, modes):
         return True
 
+
 def checkpasswd (username, password):
     user = userdb[username]
     try:
@@ -411,8 +414,10 @@ def checkpasswd (username, password):
         print("Authentication error for {:s}: Password too long".format(username))
         return False
 
+
 def setpasswd (username, password):
     updateuser(userdb[username], 'secret', bcrypt.encrypt(password, rounds=12))
+
 
 def bye (username, reason):
     putQ("{:s} has left. ({:s})".format(username, reason))
@@ -442,10 +447,8 @@ def createuser(username, password):
             cacl=cacl)
     userdb[username] = user
 
+
 def powerup(user, ip, port):
-    # This complicated looking code checks to see if the localhost has an outbound net
-    # connection with the ip and port of the connecting user. If it does it grants
-    # the user all chat commands.
     if ip == "127.0.0.1":
         ipmatch = [filter((lambda c: ip in c[0]), [ s[3] for s in psutil.net_connections() ])]
         portmatch = [filter(lambda p: port in p[1], ipmatch)]
@@ -454,6 +457,7 @@ def powerup(user, ip, port):
             return True
     return False
 
+
 def updateuser(user, field, newvalue):
     username = user['handle']
     user[field] = newvalue
@@ -461,8 +465,10 @@ def updateuser(user, field, newvalue):
     if savestate is not False:
         pickle.dump(userdb, open(state_file, "wb"))
 
+
 def putQ(message, name=None, time=time.time()):
     chatQ.put((time, name, message))
+
 
 def run (command, chan):
     user = userdb[chan.get_name()]
@@ -497,6 +503,7 @@ def run (command, chan):
             Commands.help(chan, command, justsyntax=True)
         return True
 
+
 def decode (char):
     try:
         chard = char.decode("utf-8")
@@ -504,8 +511,10 @@ def decode (char):
         chard = char.decode("cp437")
     return chard
 
+
 def intersect(l1, l2):
     return bool(set(l1) & set(l2))
+
 
 def union(l1, l2):
     lu = l1 + l2
@@ -546,6 +555,7 @@ def timeish (timedelta):
                     
     return time
 
+
 def getansi(chan):
     csiseq = False
     ecbuffer = list()
@@ -572,6 +582,7 @@ def getansi(chan):
                 chan.send(" " * (len(ecbuffer) + 1))
                 chan.send("\b" * (len(ecbuffer) + 1))
                 return "".join(ecbuffer)
+
 
 def parse(chan, linebuff):
     while True:
@@ -611,6 +622,7 @@ def parse(chan, linebuff):
             print("EOFError for user {:s}: {:s}".format(username, str(e)))
             exit()
 
+
 def chat(chan, Q, linebuffer):
     while True:
         line = parse(chan, linebuffer)
@@ -625,6 +637,7 @@ def chat(chan, Q, linebuffer):
         else:
             if line != "":
                 putQ(line, chan.get_name())
+
 
 def chatstream(channels, Q):
     while True:
@@ -650,15 +663,10 @@ def chatstream(channels, Q):
 
 
 def sendbanner (channel):
-    channel.send("ShuSSH Server")
+    channel.send("ShuSSH Server accepted")
 
-origin_quotes = ["All of our knowledge originates in our perceptions.",
-                "Don't judge a book by its cover.",
-                "There is an eerie stillness in the air.",
-                "You suddenly feel a powerful presence."]
 
 def connect (remote,addr):
-
     t = paramiko.Transport(remote)
     t.add_server_key(host_key)
     conn = Connection()
@@ -690,17 +698,7 @@ def connect (remote,addr):
         channels[username].close()
     else:
         putQ("{:s} has joined.".format(username))
-        if user['lastlogin'] == user['firstlogin']:
-            if (powerup(user, addr[0], addr[1])) is True:
-                putQ(random.choice(origin_quotes))
-                print("Godmode enabled for {:s}.".format(username))
-            chan.send("Welcome {:s}!\r\n".format(user['handle']))
-            chan.send("Type /help for a list of commands.\r\n")
-        else:
-            lastdt = datetime.datetime.fromtimestamp(user['lastlogin'])
-            nowdt = datetime.datetime.fromtimestamp(now)
-            ltdelta = nowdt - lastdt
-            chan.send("Your last login was {:s} ago.\r\n".format(timeish(ltdelta)))
+    
     updateuser(user, 'lastlogin', now)
     chan.set_name(username)
     channels[username] = chan
