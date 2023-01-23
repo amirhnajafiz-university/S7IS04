@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import datetime
 import os
 import pickle
@@ -7,7 +9,7 @@ import string
 import threading
 import time
 
-from __future__ import print_function
+
 from binascii import hexlify
 from queue import Queue
 import _thread as thread
