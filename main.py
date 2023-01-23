@@ -14,7 +14,6 @@ from binascii import hexlify
 from queue import Queue
 import _thread as thread
 
-from docopt import docopt
 import paramiko
 from paramiko.ssh_exception import SSHException
 from passlib.hash import bcrypt_sha256 as bcrypt
