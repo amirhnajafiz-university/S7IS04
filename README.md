@@ -1,18 +1,22 @@
 <h1 align="center">
- SSH Chat
+ S7IS04
 </h1>
 
 <br />
 
-Chat room over SSH.
+Implementing a chatroom over SSH with Python programming language.
 
 ## Server
+
+Starting SSH server:
 
 ```shell
 python main.py
 ```
 
 ## Connect
+
+Connect to SSH server:
 
 ```shell
 ssh localhost
